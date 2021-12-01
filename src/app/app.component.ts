@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { TestClass } from './test-model';
 
 @Component({
   selector: 'app-root',
@@ -9,31 +10,29 @@ export class AppComponent implements OnInit, OnDestroy {
   public total = 0;
   public loading = false;
 
-  private worker!: Worker;
-
-  constructor() {
-  }
+  private worker: Worker | undefined;
+  private readonly numberOfIterations = 30000000;
+  private readonly oneDayInMilliseconds = 8.64e+7;
 
   ngOnInit(): void {
     this.worker = new Worker(new URL('./calculation.worker', import.meta.url));
-    this.worker.onmessage = ({ data }) => {
-      this.total = data;
+    this.worker.onmessage = (ev: MessageEvent<number>) => {
+      this.total = ev.data;
       this.loading = false;
     };
   }
 
   ngOnDestroy(): void {
-    this.worker.terminate();
+    this.worker?.terminate();
   }
 
   public runInMainThread(): void {
     this.loading = true;
-    const oneDayInMilliseconds = 8.64e+7;
     let total = 0;
-    for (let index = 0; index < 20000000; index++) {
+    for (let index = 0; index < this.numberOfIterations; index++) {
       const today = Date.now();
-      const nextDate = ((index + 1) * oneDayInMilliseconds) + today;
-      const numberToAdd = (nextDate - today) / oneDayInMilliseconds;
+      const nextDate = ((index + 1) * this.oneDayInMilliseconds) + today;
+      const numberToAdd = (nextDate - today) / this.oneDayInMilliseconds;
       total += numberToAdd;
     }
 
@@ -42,15 +41,14 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   public async runInMainThreadAsync(): Promise<void> {
-    // Attempt by using 1 promise that calculates all 20 million
+    // Attempt by using 1 promise that calculates all iterations
     await new Promise<void>(resolve => {
       this.loading = true;
-      const oneDayInMilliseconds = 8.64e+7;
       let total = 0;
-      for (let index = 0; index < 20000000; index++) {
+      for (let index = 0; index < this.numberOfIterations + 10; index++) {
         const today = Date.now();
-        const nextDate = ((index + 1) * oneDayInMilliseconds) + today;
-        const numberToAdd = (nextDate - today) / oneDayInMilliseconds;
+        const nextDate = ((index + 1) * this.oneDayInMilliseconds) + today;
+        const numberToAdd = (nextDate - today) / this.oneDayInMilliseconds;
         total += numberToAdd;
       }
 
@@ -59,9 +57,9 @@ export class AppComponent implements OnInit, OnDestroy {
       resolve();
     });
 
-    // Attempt by using 20 million promises (NOT RECOMMENDED 🤯💣)
+    // Attempt by using a single promise for each iteration (NOT RECOMMENDED 🤯💣)
     // this.loading = true;
-    // const calculationsAsIndividualPromises = [...Array(20000000).keys()].map(index => calculateNumberToAdd(index + 1));
+    // const calculationsAsIndividualPromises = [...Array(this.numberOfIterations).keys()].map(index => calculateNumberToAdd(index + 1));
     // const calculationResults = await Promise.all(calculationsAsIndividualPromises);
     // const sum = calculationResults.reduce((accumulator, current) => accumulator + current, 0);
     // this.total = sum;
@@ -71,8 +69,8 @@ export class AppComponent implements OnInit, OnDestroy {
     //   const oneDayInMilliseconds = 8.64e+7;
     //   return new Promise<number>(resolve => {
     //     const today = Date.now();
-    //     const nextDate = ((index + 1) * oneDayInMilliseconds) + today;
-    //     const numberToAdd = (nextDate - today) / oneDayInMilliseconds;
+    //     const nextDate = ((index + 1) * this.oneDayInMilliseconds) + today;
+    //     const numberToAdd = (nextDate - today) / this.oneDayInMilliseconds;
 
     //     resolve(numberToAdd);
     //   });
@@ -81,6 +79,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
   public runInWorkerThread(): void {
     this.loading = true;
-    this.worker.postMessage('');
+    this.worker?.postMessage(this.numberOfIterations + 20);
   }
 }
